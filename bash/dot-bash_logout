@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Clear the shell history on logout if the history file is not empty.
+# 'history -c' is needed to avoid the shell flushing the in-memory history lines to the $HISTFILE.
+cat /dev/null > "$HISTFILE" && history -c

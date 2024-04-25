@@ -1,0 +1,70 @@
+#!/bin/env bash
+
+# vim:foldmethod=marker:foldlevel=0
+
+# {{{1 ENVIRONMENT VARIABLES
+#
+# Variables here are 'system' variables. Which means they are not exclusive to interactive
+# terminal sessions, thus it makes more sense to set them here instead of the .bashrc file.
+#
+
+# This should be the directory where your scripts are stored.
+SCRIPTS_PATH="${HOME}/.local/scripts"
+# Applications installed as a user without the system package manager.
+USER_BIN_PATH="${HOME}/.local/bin"
+# For applications that you want on a (potentially faster) storage partition than your ${HOME}.
+OPT_PATH="/opt/$(whoami)/bin"
+# This should be your separated SSD or HDD for games.
+GAMES_PATH="/mnt/games/bin"
+# directory for program caches
+USER_CACHE_DIR="${HOME}/.cache"
+# standard configuration directory.
+#           Damn you all HOME clutterers, I hope y'all get ejected into the sun.
+XDG_CONFIG_DIR="$HOME/.config"
+# Where the bash files that are not mandatory to be in HOME stays.
+BASH_CONFIG_DIR="${XDG_CONFIG_DIR}/bash"
+# Place for cached values for bash and bash scripts. Mostly HISTFILE though.
+BASH_CACHE_DIR="${USER_CACHE_DIR}/bash"
+
+BROWSER=firefox
+EDITOR=nvim
+GIT_EDITOR=${EDITOR}
+
+PATH="${SCRIPTS_PATH}:${USER_BIN_PATH}:${OPT_PATH}:${GAMES_PATH}:${PATH}"
+
+# DO NOT CHANGE THE DEFAULT DIRECTORY UNLESS YOU WANT HOMEBREW TO NOT WORK.
+LINUXBREW_PATH="/home/linuxbrew/.linuxbrew"
+
+declare -a _JAVA_OPTIONS_ARRAY=(
+    # GUI settings for Java apps to make their look-and-feel consistent with the rest of the
+    # system.
+    "-Dawt.useSystemAAFontSettings=on"
+    "-Dswing.aatext=true"
+    "-Dswing.defaultlaf=com.sun.java.swing.plaf.gtk.GTKLookAndFeel"
+    "-Dswing.crossplatformlaf=com.sun.java.swing.plaf.gtk.GTKLookAndFeel"
+    "${_JAVA_OPTIONS}"
+)
+
+_JAVA_OPTIONS="${_JAVA_OPTIONS_ARRAY[*]}"
+
+# 1}}}
+export PATH
+
+export_ro() {
+    readonly "$@"
+    export "${@?}"
+}
+
+# You should test the availability of these directories/programs on .bashrc, to make sure
+# that warnings will be sent to the user during an interactive terminal session.
+export_ro SCRIPTS_PATH USER_BIN_PATH OPT_PATH GAMES_PATH USER_CACHE_DIR XDG_CONFIG_DIR \
+          BASH_CONFIG_DIR BASH_CACHE_DIR LINUXBREW_PATH BROWSER EDITOR GIT_EDITOR
+
+unset -f export_ro
+
+# Fuck you, Java! *middle_finger*
+export _JAVA_OPTIONS
+
+# also source bashrc on the login terminal
+# shellcheck disable=1091
+test -f "${HOME}/.bashrc" && . "${HOME}/.bashrc"
