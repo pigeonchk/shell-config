@@ -1,70 +1,85 @@
 #!/bin/env bash
-
 # vim:foldmethod=marker:foldlevel=0
 
-# {{{1 ENVIRONMENT VARIABLES
-#
-# Variables here are 'system' variables. Which means they are not exclusive to interactive
-# terminal sessions, thus it makes more sense to set them here instead of the .bashrc file.
-#
+# shellcheck disable=1091
 
-# This should be the directory where your scripts are stored.
-SCRIPTS_PATH="${HOME}/.local/scripts"
-# Applications installed as a user without the system package manager.
-USER_BIN_PATH="${HOME}/.local/bin"
-# For applications that you want on a (potentially faster) storage partition than your ${HOME}.
-OPT_PATH="/opt/$(whoami)/bin"
-# This should be your separated SSD or HDD for games.
-GAMES_PATH="/mnt/games/bin"
-# directory for program caches
-USER_CACHE_DIR="${HOME}/.cache"
-# standard configuration directory.
-#           Damn you all HOME clutterers, I hope y'all get ejected into the sun.
-XDG_CONFIG_DIR="$HOME/.config"
-# Where the bash files that are not mandatory to be in HOME stays.
-BASH_CONFIG_DIR="${XDG_CONFIG_DIR}/bash"
-# Place for cached values for bash and bash scripts. Mostly HISTFILE though.
-BASH_CACHE_DIR="${USER_CACHE_DIR}/bash"
+export USER_GIT_REMOTE_LINK="https://github.com/pigeonchk"
+export USER_SHELL_CONFIG_GIT="$USER_GIT_REMOTE_LINK/shell-config"
 
-BROWSER=firefox
-EDITOR=nvim
-GIT_EDITOR=${EDITOR}
+# {{{ USER BASE DIRECTORIES
 
-PATH="${SCRIPTS_PATH}:${USER_BIN_PATH}:${OPT_PATH}:${GAMES_PATH}:${PATH}"
+export USER_GAMES_HOME="/mnt/games"
+export USER_LOCAL_HOME="$HOME/.local"
+export USER_VAR_HOME="$USER_LOCAL_HOME/var"
+export USER_FAST_LOCAL_HOME="/opt/$USER"
+
+# }}}
+
+# {{{ XDG BASE DIRECTORIES
+
+# directory for user-specific configuration (like /etc)
+export XDG_CONFIG_HOME="$USER_LOCAL_HOME/config"
+# directory for program cached data (like /var/cache)
+export XDG_CACHE_HOME="$USER_VAR_HOME/cache"
+# directory for program data (like /usr/share)
+export XDG_DATA_HOME="$USER_LOCAL_HOME/share"
+# directory for program state files (like /var/lib)
+export XDG_STATE_HOME="$USER_VAR_HOME/lib"
+
+# }}} XDG BASE DIRECTORIES
+
+# {{{ ADDITIONAL DIRECTORIES
+
+export USER_GAMES_BIN_HOME="$USER_GAMES_HOME/bin"
+export USER_SCRIPT_HOME="$USER_LOCAL_HOME/script"
+
+declare -nx USER_CONFIG_HOME="XDG_CONFIG_HOME"
+declare -nx USER_CACHE_HOME="XDG_CACHE_HOME"
+declare -nx USER_DATA_HOME="XDG_DATA_HOME"
+declare -nx USER_STATE_HOME="XDG_STATE_HOME"
+export USER_BIN_HOME="$USER_LOCAL_HOME/bin"
+
+export USER_FAST_CONFIG_HOME="$USER_FAST_LOCAL_HOME/config"
+export USER_FAST_CACHE_HOME="$USER_FAST_LOCAL_HOME/cache"
+export USER_FAST_DATA_HOME="$USER_FAST_LOCAL_HOME/share"
+export USER_FAST_STATE_HOME="$USER_FAST_LOCAL_HOME/lib"
+export USER_FAST_BIN_HOME="$USER_FAST_LOCAL_HOME/bin"
+
+export BASH_CONFIG_HOME="$USER_CONFIG_HOME/bash"
+export BASH_CACHE_DIR="$USER_CACHE_HOME/bash"
 
 # DO NOT CHANGE THE DEFAULT DIRECTORY UNLESS YOU WANT HOMEBREW TO NOT WORK.
-LINUXBREW_PATH="/home/linuxbrew/.linuxbrew"
+export LINUXBREW_PATH="/home/linuxbrew/.linuxbrew"
 
+HOME_PATH="$USER_SCRIPT_HOME:$USER_BIN_HOME"
+export PATH="$HOME_PATH:$USER_FAST_BIN_HOME:$USER_GAMES_BIN_HOME:$PATH"
+unset HOME_PATH
+
+# }}} ADDITIONAL DIRECTORIES
+
+# {{{ DEFAULT APPLICATIONS
+
+export BROWSER=firefox
+export EDITOR=nvim
+export FCEDITOR=ed
+export GIT_EDITOR="$EDITOR"
+
+# }}}
+
+# {{{ _JAVA_OPTIONS
 declare -a _JAVA_OPTIONS_ARRAY=(
-    # GUI settings for Java apps to make their look-and-feel consistent with the rest of the
-    # system.
+    # GUI settings for Java apps to make their look-and-feel consistent with the
+    # rest of the system.
     "-Dawt.useSystemAAFontSettings=on"
     "-Dswing.aatext=true"
     "-Dswing.defaultlaf=com.sun.java.swing.plaf.gtk.GTKLookAndFeel"
     "-Dswing.crossplatformlaf=com.sun.java.swing.plaf.gtk.GTKLookAndFeel"
-    "${_JAVA_OPTIONS}"
 )
 
-_JAVA_OPTIONS="${_JAVA_OPTIONS_ARRAY[*]}"
-
-# 1}}}
-export PATH
-
-export_ro() {
-    readonly "$@"
-    export "${@?}"
-}
-
-# You should test the availability of these directories/programs on .bashrc, to make sure
-# that warnings will be sent to the user during an interactive terminal session.
-export_ro SCRIPTS_PATH USER_BIN_PATH OPT_PATH GAMES_PATH USER_CACHE_DIR XDG_CONFIG_DIR \
-          BASH_CONFIG_DIR BASH_CACHE_DIR LINUXBREW_PATH BROWSER EDITOR GIT_EDITOR
-
-unset -f export_ro
-
 # Fuck you, Java! *middle_finger*
-export _JAVA_OPTIONS
+export _JAVA_OPTIONS="${_JAVA_OPTIONS_ARRAY[*]} $_JAVA_OPTIONS"
+unset _JAVA_OPTIONS_ARRAY
 
-# also source bashrc on the login terminal
-# shellcheck disable=1091
-test -f "${HOME}/.bashrc" && . "${HOME}/.bashrc"
+# }}}
+
+test -f "$HOME/.bashrc" && . "$HOME/.bashrc"
