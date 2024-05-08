@@ -5,6 +5,8 @@
 
 # TODO documentation.
 
+# {{{ USER_REPORT_LEVELS definition
+
 if ! declare -p USER_REPORT_LEVELS &>/dev/null; then
     # PIDS :) Pigeonchk Individual Developer Standard :)
     declare -Arx PIDS_ERRORS=(
@@ -55,6 +57,10 @@ if ! declare -p USER_REPORT_LEVELS &>/dev/null; then
     )
 fi
 
+# }}}
+
+# {{{ Internal functions
+
 @_report() {
     local sep="⁂"
     local lvl="$1"
@@ -85,6 +91,8 @@ fi
 @_invalid_report_level() {
     @_report 'user_error' "${FUNCNAMES[1]}" "invalid report level: $1"
 }
+
+# }}}
 
 @report_colorcode() {
     local lvl="$1"

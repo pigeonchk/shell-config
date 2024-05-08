@@ -1,0 +1,149 @@
+#!/bin/bash
+# vim:foldmethod=marker:foldlevel=0
+
+# shellcheck disable=2155,1091
+
+# {{{ command checking functions
+
+# Returns the path of a command. Bypasses shell functions and aliases.
+@bin() { builtin type -P "$1"; }
+# These functions whether a command is a function, alias, or a builtin.
+#
+# Cannot return the path of the script that defined it since bash does not keep
+# a record of it, afaik.
+@fun() { [ "$(builtin type -t "$1")" = function ]; }
+@ali() { [ "$(builtin type -t "$1")" = alias ]; }
+@bui() { [ "$(builtin type -t "$1")" = builtin ]; }
+
+@chkbin() {
+    local origin="${BASH_SOURCE[1]}"
+    [ "$origin" ] || origin="<interactive>"
+    if [ ! "$(@bin "$1")" ]; then
+        command printf "*MISSING* from %s * command not found: %s\n" \
+                       "$origin" "$1"
+    fi
+}
+
+@chkvarpath() {
+    local origin="${BASH_SOURCE[1]}"
+    [ "$origin" ] || origin="<interactive>"
+    if [ ! -r "${!1}" ]; then
+        command printf "*MISSING* from %s * path not found: %s (%s)\n" \
+                       "$origin" "$1" "%${!1}"
+    fi
+}
+
+export -f @bin @fun @ali @bui @chkbin @chkvarpath
+
+# }}}
+
+# If not running interactively, don't continue further
+[[ $- != *i* ]] && return
+
+# {{{ PGP SSH support
+
+# Setup ssh to use PGP as authentication method
+if [ ! "$GPG_TTY" ] && @bin gpg; then
+    # kill the running instance of ssh-agent, if any
+    test -v SSH_AGENT_PID && command ssh-agent -k &>/dev/null
+    if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
+        export SSH_AUTH_SOCK="$(command gpgconf --list-dirs agent-ssh-socket)"
+    fi
+    export GPG_TTY=$(tty)
+    gpg-connect-agent /bye &>/dev/null
+fi
+
+# }}}
+
+# {{{ Shell history
+
+# unclutter $HOME by moving the .bash_history file.
+export HISTFILE="$BASH_CACHE_DIR/history"
+# The timestamp format when using the 'history' tool.
+export HISTTIMEFORMAT="%T * "
+# The number of commands which is sent to $HISTFILE after exiting the shell.
+export HISTSIZE=5
+# The maximum number of lines $HISTFILE can contain before being truncated.
+export HISTFILESIZE=100
+# ignoreboth    ignore duplicate lines or lines starting with space.
+# erasedups     lines in the history similar to the current one is removed.
+export HISTCONTROL='ignoreboth:erasedups'
+export HISTIGNORE='sudo *:source *:. *:gpg*:fc *:history *'
+
+# histappend    Append to the history file, don't overwrite it.
+# cmdhist       multi-line command is saved in the same line
+# histverify    send history substitution to the readline buffer.
+shopt -s histappend cmdhist histverify
+
+# }}}
+
+# {{{ shopt configuration (interactive only)
+
+# autocd    used a directory name directly without cd.
+# cdspell   correct minor spelling errors.
+# direxpand expand directory names with filename completion.
+# dirspell  spelling corrention on directories during word completion.
+# progcomp_alias    completion on aliases.
+shopt -s autocd cdspell direxpand progcomp_alias
+
+# }}}
+
+# {{{ shopt configuration
+
+# assoc_expand_once evaluate associative arrays only once.
+# cdable_vars       use variable names with cd.
+# checkhash         checks the hash tables before executing a command.
+# checkjobs         defer exiting if there's any running job.
+# extglob           enables extended glob features.
+# globasciiranges   use the C locale with pattern ranges.
+# globstar          expand all files and (sub)directories.
+shopt -s assoc_expand_once cdable_vars checkhash checkjobs extglob \
+         globasciiranges globstar
+
+# }}}
+
+# {{{ source scripts
+
+# OS Information
+. "comp.sh"
+
+# error reporting
+. "report.sh"
+
+# text shit
+. "txt.sh"
+
+# pretty text shit
+. "txt_decor.sh"
+
+. "aliases.sh"
+. "fancy_inline_prompt/prompt.sh"
+
+# }}}
+
+# {{{ additional shell configuration files
+
+eval "$(dircolors "$BASH_CONFIG_HOME/dircolors")"
+
+# TODO make my own programmable completion script
+test -r "/usr/share/bash-completion/bash_completion" && \
+    . "/usr/share/bash-completion/bash_completion"
+
+# }}}
+
+# {{{ default programs
+
+@chkbin "$BROWSER"
+@chkbin "$EDITOR"
+@chkbin "$GIT_EDITOR"
+
+# }}}
+
+# {{{ default directories (outside $HOME)
+
+# These should point to another mountpoint that is faster than the one
+# used by $HOME. Ideally, a SSD.
+@chkvarpath USER_GAMES_HOME
+@chkvarpath USER_FAST_LOCAL_HOME
+
+# }}}
