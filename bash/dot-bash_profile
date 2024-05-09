@@ -6,54 +6,167 @@
 export USER_GIT_REMOTE_LINK="https://github.com/pigeonchk"
 export USER_SHELL_CONFIG_GIT="$USER_GIT_REMOTE_LINK/shell-config"
 
-# {{{ USER BASE DIRECTORIES
+if [ "$BASH_PROFILE_DEBUG" ]; then
+    :() {
+        print_var() {
+            local exists="(don't exist)"
+            test -d "${!1}" && exists="(exists)"
+            command  printf "%- 30s %- 42s %s\n" "$1" "${!1}" "$exists"
+        }
 
-export USER_GAMES_HOME="/mnt/games"
-export USER_LOCAL_HOME="$HOME/.local"
-export USER_VAR_HOME="$USER_LOCAL_HOME/var"
-export USER_FAST_LOCAL_HOME="/opt/$USER"
+        if (($# == 0)); then
+            print_var "DOTLOCAL"
+            print_var "FASTPARTITION"
+            print_var "FASTERPARTITION"
+            return
+        fi
 
-# }}}
+        for arg; do
+            print_var "$arg"
+        done
+    }
+fi
 
-# {{{ XDG BASE DIRECTORIES
+# *_CONFIG_* directory for user-specific configuration (like /etc)
+# *_DATA_*   directory for program data (like /usr/share)
+# *_CACHE_*  directory for program cached data (like /var/cache)
+# *_STATE_*  directory for program state files (like /var/lib)
 
-# directory for user-specific configuration (like /etc)
-export XDG_CONFIG_HOME="$USER_LOCAL_HOME/config"
-# directory for program cached data (like /var/cache)
-export XDG_CACHE_HOME="$USER_VAR_HOME/cache"
-# directory for program data (like /usr/share)
-export XDG_DATA_HOME="$USER_LOCAL_HOME/share"
-# directory for program state files (like /var/lib)
-export XDG_STATE_HOME="$USER_VAR_HOME/lib"
+# XDG
+#   XDG_CONFIG_HOME ($HOME/.local/config)
+#   XDG_DATA_HOME   ($HOME/.local/share)
+#   XDG_CACHE_HOME  ($HOME/.local/var/cache)
+#   XDG_STATE_HOME  ($HOME/.local/var/lib)
+#
+# GAMES
+#   USER_GAMES_HOME     (/mnt/games)
+#   USER_GAMES_BIN_HOME (/mnt/games/bin)
+#
+# EXEC PATH
+#   USER_SCRIPT_HOME ($HOME/.local/script)
+#   USER_GAMES_BIN_HOME (/mnt/games/bin)
 
-# }}} XDG BASE DIRECTORIES
+DOTLOCAL="$HOME/.local"
+FASTERPARTITION="/mnt"
+FASTPARTITION="/opt"
+:
+
+# {{{ XDG
+
+export XDG_CONFIG_HOME="$DOTLOCAL/config"
+export XDG_DATA_HOME="$DOTLOCAL/share"
+export XDG_CACHE_HOME="$DOTLOCAL/var/cache"
+export XDG_STATE_HOME="$DOTLOCAL/var/lib"
+
+[ -d "$DOTLOCAL" ] && command mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
+[ -d "$DOTLOCAL/var" ] && command mkdir -p "$XDG_CACHE_HOME" "$XDG_STATE_HOME"
+
+# *DEBUG*
+: "XDG_CONFIG_HOME" "XDG_DATA_HOME" "XDG_CACHE_HOME" "XDG_STATE_HOME"
+
+# }}} XDG
+
+# {{{ GAMES
+
+# in my system, I use the fastest SSD as the mountpoint
+export USER_GAMES_HOME="$FASTERPARTITION/games"
+
+: "USER_GAMES_HOME"
+
+# }}} GAMES
+
+# {{{ EXEC PATH
+
+export USER_SCRIPT_HOME="$DOTLOCAL/script"
+export BASH_SCRIPT_HOME="$DOTLOCAL/config/bash/script"
+
+[ -d "$DOTLOCAL" ] && command mkdir -p "$USER_SCRIPT_HOME"
+
+: "USER_SCRIPT_HOME" "BASH_SCRIPT_HOME"
+
+export USER_BIN_HOME="$DOTLOCAL/bin"
+export USER_FAST_BIN_HOME="$FASTPARTITION/$USER/local/bin"
+export USER_GAMES_BIN_HOME="$FASTERPARTITION/games/bin"
+
+[ -d "$DOTLOCAL" ] && command mkdir -p "$USER_BIN_HOME"
+[ -d "$FASTPARTITION/$USER" ] && command mkdir -p "$USER_FAST_BIN_HOME"
+[ -d "$FASTERPARTITION/games" ] && command mkdir -p "$USER_GAMES_BIN_HOME"
+
+: "USER_BIN_HOME" "USER_FAST_BIN_HOME" "USER_GAMES_BIN_HOME"
+
+# BASH_SCRIPT_HOME should always come first, so that the source builtin (.) can
+# find the correct script to source, without needing to know the full path.
+#
+# USER_SCRIPT_HOME should be right after, for the same reason, but with lower
+# precedent.
+SOURCEPATH="$BASH_SCRIPT_HOME:$USER_SCRIPT_HOME"
+# This is ordered according to speed of the storage device. In my case, as of
+# (09-05-2024), I am using a M.2 SSD for /mnt/games, a SATA SSD for the /opt
+# mountpoint, and a (very slow) repurposed HDD from a old notebook as /home.
+# Additionally, the / (root) mountpoint is on another SATA SSD.
+BINPATH="$USER_GAMES_BIN_HOME:$USER_FAST_BIN_HOME:$USER_BIN_HOME"
+
+export PATH="$SOURCEPATH:$BINPATH:$PATH"
+unset SOURCEPATH BINPATH
+
+# }}} EXEC PATH
+
+# {{{ aka /etc
+
+export USER_CONFIG_HOME="$XDG_CONFIG_HOME"
+export USER_FAST_CONFIG_HOME="$FASTPARTITION/$USER/local/config"
+export BASH_CONFIG_HOME="$XDG_CONFIG_HOME/bash"
+
+[ -d "$FASTPARTITION/$USER" ] && command mkdir -p "$USER_FAST_CONFIG_HOME"
+[ -d "$XDG_CONFIG_HOME" ] && command mkdir -p "$BASH_CONFIG_HOME"
+
+: "USER_CONFIG_HOME" "USER_FAST_CONFIG_HOME" "BASH_CONFIG_HOME"
+
+# }}} aka /etc
+
+# {{{ aka /usr/share
+
+export USER_DATA_HOME="$XDG_DATA_HOME"
+export USER_FAST_DATA_HOME="$FASTPARTITION/$USER/local/share"
+export BASH_DATA_HOME="$XDG_DATA_HOME/bash"
+
+[ -d "$FASTPARTITION/$USER" ] && command mkdir -p "$USER_FAST_DATA_HOME"
+[ -d "$XDG_DATA_HOME" ] && command mkdir -p "$BASH_DATA_HOME"
+
+: "USER_DATA_HOME" "USER_FAST_DATA_HOME" "BASH_DATA_HOME"
+
+# }}} aka /usr/share
+
+# {{{ aka /var/cache
+
+export USER_CACHE_HOME="$XDG_CACHE_HOME"
+export USER_FAST_CACHE_HOME="$FASTPARTITION/$USER/local/var/cache"
+export BASH_CACHE_HOME="$XDG_CACHE_HOME/bash"
+
+[ -d "$FASTPARTITION/$USER" ] && command mkdir -p "$USER_FAST_CACHE_HOME"
+[ -d "$XDG_CACHE_HOME" ] && command mkdir -p "$BASH_CACHE_HOME"
+
+: "USER_CACHE_HOME" "USER_FAST_CACHE_HOME" "BASH_CACHE_HOME"
+
+# }}} aka /etc
+
+# {{{ aka /var/lib
+
+export USER_STATE_HOME="$XDG_STATE_HOME"
+export USER_FAST_STATE_HOME="$FASTPARTITION/$USER/local/var/lib"
+export BASH_STATE_HOME="$XDG_STATE_HOME/bash"
+
+[ -d "$FASTPARTITION/$USER" ] && command mkdir -p "$USER_FAST_STATE_HOME"
+[ -d "$XDG_STATE_HOME" ] && command mkdir -p "$BASH_STATE_HOME"
+
+: "USER_STATE_HOME" "USER_FAST_STATE_HOME" "BASH_STATE_HOME"
+
+# }}} /var/lib
 
 # {{{ ADDITIONAL DIRECTORIES
 
-export USER_GAMES_BIN_HOME="$USER_GAMES_HOME/bin"
-export USER_SCRIPT_HOME="$USER_LOCAL_HOME/script"
-
-declare -nx USER_CONFIG_HOME="XDG_CONFIG_HOME"
-declare -nx USER_CACHE_HOME="XDG_CACHE_HOME"
-declare -nx USER_DATA_HOME="XDG_DATA_HOME"
-declare -nx USER_STATE_HOME="XDG_STATE_HOME"
-export USER_BIN_HOME="$USER_LOCAL_HOME/bin"
-
-export USER_FAST_CONFIG_HOME="$USER_FAST_LOCAL_HOME/config"
-export USER_FAST_CACHE_HOME="$USER_FAST_LOCAL_HOME/cache"
-export USER_FAST_DATA_HOME="$USER_FAST_LOCAL_HOME/share"
-export USER_FAST_STATE_HOME="$USER_FAST_LOCAL_HOME/lib"
-export USER_FAST_BIN_HOME="$USER_FAST_LOCAL_HOME/bin"
-
-export BASH_CONFIG_HOME="$USER_CONFIG_HOME/bash"
-export BASH_CACHE_HOME="$USER_CACHE_HOME/bash"
-
 # DO NOT CHANGE THE DEFAULT DIRECTORY UNLESS YOU WANT HOMEBREW TO NOT WORK.
 export LINUXBREW_PATH="/home/linuxbrew/.linuxbrew"
-
-HOME_PATH="$BASH_CONFIG_HOME/script:$USER_SCRIPT_HOME:$USER_BIN_HOME"
-export PATH="$HOME_PATH:$USER_FAST_BIN_HOME:$USER_GAMES_BIN_HOME:$PATH"
-unset HOME_PATH
 
 # }}} ADDITIONAL DIRECTORIES
 
@@ -63,6 +176,8 @@ export BROWSER=firefox
 export EDITOR=nvim
 export FCEDITOR=ed
 export GIT_EDITOR="$EDITOR"
+
+export PYTHONSTARTUP="$XDG_CONFIG_HOME/python/pythonrc"
 
 # }}}
 
@@ -81,5 +196,28 @@ export _JAVA_OPTIONS="${_JAVA_OPTIONS_ARRAY[*]} $_JAVA_OPTIONS"
 unset _JAVA_OPTIONS_ARRAY
 
 # }}}
+
+# {{{ XDG USER DIRECTORIES
+
+export USER_XDG_HOME="$HOME/X"
+declare -a xdg_user_dir_names=(desktop download template share doc audio image media)
+declare -a xdg_user_dir_varnames=( \
+    DESKTOP DOWNLOAD TEMPLATES PUBLICSHARE DOCUMENTS MUSIC PICTURES VIDEOS)
+
+if [ "$(type -t xdg-user-dirs-update)" ]; then
+    declare dirpath
+    for ((i=0; i < ${#xdg_user_dir_names[@]}; i++)); do
+        dirpath="$USER_XDG_HOME/${xdg_user_dir_names[$i]}"
+        command mkdir -p "$dirpath"
+        xdg-user-dirs-update --set "${xdg_user_dir_varnames[$i]}" "$dirpath"
+    done
+    unset dirpath
+fi
+
+unset xdg_user_dir_names xdg_user_dir_varnames
+
+# }}} xdg user directories
+
+unset DOTLOCAL FASTERPARTITION FASTPARTITION
 
 test -f "$HOME/.bashrc" && . "$HOME/.bashrc"
