@@ -3,121 +3,112 @@
 
 # shellcheck disable=2155,1091
 
-# {{{ command checking functions
+# {{{ finish non-interactive session logging setup
 
-# Returns the path of a command. Bypasses shell functions and aliases.
-@bin() { builtin type -P "$1"; }
-# These functions whether a command is a function, alias, or a builtin.
-#
-# Cannot return the path of the script that defined it since bash does not keep
-# a record of it, afaik.
-@fun() { [ "$(builtin type -t "$1")" = function ]; }
-@ali() { [ "$(builtin type -t "$1")" = alias ]; }
-@bui() { [ "$(builtin type -t "$1")" = builtin ]; }
+if [[ $- = *i* ]]; then
+    IS_INTERACTIVE=y
+    @new_log_file() { true; }
+    @log_export() { true; }
+fi
 
-@chkbin() {
-    local origin="${BASH_SOURCE[1]}"
-    [ "$origin" ] || origin="<interactive>"
-    if [ ! "$(@bin "$1")" ]; then
-        command printf "*MISSING* from %s * command not found: %s\n" \
-                       "$origin" "$1"
-    fi
+BASH_LOG="$BASH_PROFILE_LOG"
+
+@log_bash_export() {
+    @log_export BASH_LOG "$@"
 }
 
-@chkvarpath() {
-    local origin="${BASH_SOURCE[1]}"
-    [ "$origin" ] || origin="<interactive>"
-    if [ ! -r "${!1}" ]; then
-        command printf "*MISSING* from %s * path not found: %s (%s)\n" \
-                       "$origin" "$1" "%${!1}"
-    fi
-}
+# }}} finish non-interactive session logging setup
 
-export -f @bin @fun @ali @bui @chkbin @chkvarpath
+# {{{ User public information
 
-# }}}
+export NAME="Gabriel Manoel Barbosa"
+export EMAIL="gabrielmanoel13@gmail.com"
+export GITREMOTE="https://github.com/$USER"
 
-# If not running interactively, don't continue further
-[[ $- != *i* ]] && return
+# fingerprints of my pgp keys, for easy access.
+export PGP_AUTH="B2A2F09A999DA3DE"
+export PGP_SIGN="39209B06564DAE80"
+export PGP_ENCR="7E1CB15FEC0409A9"
 
-# {{{ PGP SSH support
+export GITREMOTE_REPOS="shell-config"
+export GITREMOTE_SHELL_CONFIG="$GITREMOTE/shell-config"
 
-# Setup ssh to use PGP as authentication method
-if [ ! "$GPG_TTY" ] && @bin gpg; then
-    # kill the running instance of ssh-agent, if any
-    test -v SSH_AGENT_PID && command ssh-agent -k &>/dev/null
-    if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
-        export SSH_AUTH_SOCK="$(command gpgconf --list-dirs agent-ssh-socket)"
-    fi
-    export GPG_TTY=$(tty)
-    gpg-connect-agent /bye &>/dev/null
+export PREFER_LIB_LICENSE="mit"
+export PREFER_BIN_LICENSE="mit"
+
+# }}} User public information
+
+# {{{ Shell history
+
+if [ ! "$HISTFILE" ]; then
+    # unclutter $HOME by moving the .bash_history file.
+    export HISTFILE="$BASH_CACHE_HOME/history"
+    # The timestamp format when using the 'history' tool.
+    export HISTTIMEFORMAT="%T * "
+    # The number of commands which is kept by the shell.
+    export HISTSIZE=100
+    # The maximum number of lines $HISTFILE can contain before being truncated.
+    export HISTFILESIZE=1000
+    # ignoreboth    ignore duplicate lines or lines starting with space.
+    # erasedups     lines in the history similar to the current one is removed.
+    export HISTCONTROL='ignoreboth:erasedups'
+    #export HISTIGNORE='sudo *:source *:. *:gpg*:fc *:history *'
+
+    @log_bash_export HISTFILE HISTTIMEFORMAT HISTSIZE HISTFILESIZE HISTCONTROL
 fi
 
 # }}}
 
-# {{{ Shell history
+[[ $- != *i* ]] && return
 
-# unclutter $HOME by moving the .bash_history file.
-export HISTFILE="$BASH_CACHE_DIR/history"
-# The timestamp format when using the 'history' tool.
-export HISTTIMEFORMAT="%T * "
-# The number of commands which is sent to $HISTFILE after exiting the shell.
-export HISTSIZE=5
-# The maximum number of lines $HISTFILE can contain before being truncated.
-export HISTFILESIZE=100
-# ignoreboth    ignore duplicate lines or lines starting with space.
-# erasedups     lines in the history similar to the current one is removed.
-export HISTCONTROL='ignoreboth:erasedups'
-export HISTIGNORE='sudo *:source *:. *:gpg*:fc *:history *'
+# {{{ setup logging for a interactive session
 
-# histappend    Append to the history file, don't overwrite it.
-# cmdhist       multi-line command is saved in the same line
-# histverify    send history substitution to the readline buffer.
-shopt -s histappend cmdhist histverify
+export -f @log_bash_export @log_export @new_log_file
 
-# }}}
+# these variables are setup in .bash_profile and contains the definitions of
+# @new_log_file and @log_export. These are only really useful when not in a
+# login shell, since you cannot export functions from bash_profile.
+if [ "$BASH_PROFILE_NEW_LOG_FILE" ] && [ "$BASH_PROFILE_LOG_EXPORT" ]; then
+    # TODO should allow for better customization of the logfile location and/or
+    #      name.
+    # TODO csv-style log output and a dedicated tool to parse and display it.
 
-# {{{ shopt configuration (interactive only)
+    # @new_log_file should not be overwritten, so we defined it as readonly.
+    if [ ! "$(type -t @new_log_file)" ]; then
+        eval "$BASH_PROFILE_NEW_LOG_FILE"
+        readonly -f @new_log_file
+    fi
 
-# autocd    used a directory name directly without cd.
-# cdspell   correct minor spelling errors.
-# direxpand expand directory names with filename completion.
-# dirspell  spelling corrention on directories during word completion.
-# progcomp_alias    completion on aliases.
-shopt -s autocd cdspell direxpand progcomp_alias
+    if [ ! "$(type -t @log_export)" ]; then
+        eval "$BASH_PROFILE_LOG_EXPORT"
+        readonly -f @log_export
+    fi
 
-# }}}
+    unset BASH_PROFILE_NEW_LOG_FILE BASH_PROFILE_LOG_EXPORT
+fi
 
-# {{{ shopt configuration
+# }}} setup logging for a interactive session
 
-# assoc_expand_once evaluate associative arrays only once.
-# cdable_vars       use variable names with cd.
-# checkhash         checks the hash tables before executing a command.
-# checkjobs         defer exiting if there's any running job.
-# extglob           enables extended glob features.
-# globasciiranges   use the C locale with pattern ranges.
-# globstar          expand all files and (sub)directories.
-shopt -s assoc_expand_once cdable_vars checkhash checkjobs extglob \
-         globasciiranges globstar
+export -f @log_bash_export @log_export @new_log_file
+export BASH_LOG="$(@new_log_file "shell_$$")"
 
-# }}}
+# {{{ Setup GnuPG
 
-# {{{ source scripts
+if [ "$SSH_AUTH_SOCK" != \
+    "$(command gpgconf --list-dirs agent-sshsocket)" ]; then
+    # kill the running instance of ssh-agent, if any
+    [ "$SSH_AGENT_PID" ] && command ssh-agent -k &>/dev/null
+    unset SSH_AGENT_PID
+    if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
+        export SSH_AUTH_SOCK="$(command gpgconf --list-dirs agent-ssh-socket)"
+        @log_bash_export SSH_AUTH_SOCK
+    fi
+    # start gpg-agent
+    command gpg-connect-agent /bye &>/dev/null
+fi
 
-# OS Information
-. "comp.sh"
-
-# error reporting
-. "report.sh"
-
-# text shit
-. "txt.sh"
-
-# pretty text shit
-. "txt_decor.sh"
-
-. "aliases.sh"
-. "fancy_inline_prompt/prompt.sh"
+export GPG_TTY=$(tty)
+@log_bash_export GPG_TTY
 
 # }}}
 
@@ -125,9 +116,23 @@ shopt -s assoc_expand_once cdable_vars checkhash checkjobs extglob \
 
 eval "$(dircolors "$BASH_CONFIG_HOME/dircolors")"
 
+. "$BASH_CONFIG_HOME/shell_options.sh"
+
 # TODO make my own programmable completion script
 test -r "/usr/share/bash-completion/bash_completion" && \
     . "/usr/share/bash-completion/bash_completion"
+
+# }}}
+
+# {{{ source scripts
+
+. "cmdlchk.sh"
+. "comp.sh"
+. "report.sh"
+. "txt.sh"
+. "txt_alt.sh"
+. "prompt.sh"
+. "aliases.sh"
 
 # }}}
 
@@ -139,11 +144,4 @@ test -r "/usr/share/bash-completion/bash_completion" && \
 
 # }}}
 
-# {{{ default directories (outside $HOME)
-
-# These should point to another mountpoint that is faster than the one
-# used by $HOME. Ideally, a SSD.
-@chkvarpath USER_GAMES_HOME
-@chkvarpath USER_FAST_LOCAL_HOME
-
-# }}}
+unset IS_INTERACTIVE

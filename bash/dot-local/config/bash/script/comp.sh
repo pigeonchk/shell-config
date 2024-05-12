@@ -4,8 +4,8 @@
 
 declare -p COMP &>/dev/null && return
 
-COMP_LINUXDIST="Unknown"
-COMP_LINUXDIST_VERSION="?"
+export COMP_LINUXDIST="Unknown"
+export COMP_LINUXDIST_VERSION="?"
 if test -f /etc/os-release; then
     read -r COMP_LINUXDIST COMP_LINUXDIST_VERSION < \
         <(. /etc/os-release; command printf "%s %s" \

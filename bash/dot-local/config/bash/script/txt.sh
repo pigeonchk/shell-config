@@ -95,4 +95,4 @@ fi
     command printf "% *s" "$1" | command sed "y^ ^$2^"
 }
 
-export -f @txt_tr @txt_grps @txt_upper @txt_inet
+export -f @txt_tr @txt_grps @txt_upper @txt_inet @txt_rep

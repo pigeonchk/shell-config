@@ -159,12 +159,7 @@ declare -x PPT_SHAPE_CACHED
         expanded_lines+=("$expanded")
     done
 
-    local ppt
-    for ((i=0; i < ${#expanded_lines[@]}; i++)); do
-        ppt="$ppt\n${expanded_lines[$i]}"
-    done
-
-    PPT_SHAPE_CACHED="$ppt"
+    PPT_SHAPE_CACHED="$(printf "%s\n" "${expanded_lines[@]}")"
     PPT_ISCACHED=1
 }
 

@@ -1,31 +1,55 @@
 #!/bin/env bash
 # vim:foldmethod=marker:foldlevel=0
 
-# shellcheck disable=1091
+# shellcheck disable=1091,2155
 
-export USER_GIT_REMOTE_LINK="https://github.com/pigeonchk"
-export USER_SHELL_CONFIG_GIT="$USER_GIT_REMOTE_LINK/shell-config"
+export BASH_LOG_PATH="/tmp/bash/log"
+[ ! -d "$BASH_LOG_PATH" ] && command mkdir -p "$BASH_LOG_PATH"
 
-if [ "$BASH_PROFILE_DEBUG" ]; then
-    :() {
-        print_var() {
-            local exists="(don't exist)"
-            test -d "${!1}" && exists="(exists)"
-            command  printf "%- 30s %- 42s %s\n" "$1" "${!1}" "$exists"
-        }
+# {{{ DEBUG
 
-        if (($# == 0)); then
-            print_var "DOTLOCAL"
-            print_var "FASTPARTITION"
-            print_var "FASTERPARTITION"
-            return
+@new_log_file() {
+    (( $# == 0 )) && return
+    [ ! -d "$BASH_LOG_PATH" ] && { command printf "/dev/null\n"; return; }
+
+    local template="$BASH_LOG_PATH/$1.log."
+    local current
+    for ((i=0; ; i++)); do
+        current="$template$i"
+        [ ! -w "$current" ] && break
+    done
+
+    command touch "$current"
+    command printf "%s\n" "$current"
+}
+
+export BASH_PROFILE_LOG="$(@new_log_file "profile")"
+
+@log_export() {
+    local log="${!1}"
+    [ ! -w "$log" ] && return
+
+    shift
+
+    for arg; do
+        [ ! "$(declare -p "$arg")" ] && return
+
+        local exists=
+        if command grep -q "/" <<<"${!arg}"; then
+            exists=" [ok]"
+            test ! -e "${!arg}" && exists=" [missing]"
         fi
+        local func="${FUNCNAME[1]}"
+        local origin="${BASH_SOURCE[1]}"
+        [ "$func" ] && func="$func "
+        [ ! "$origin" ] && func="<interactive>"
 
-        for arg; do
-            print_var "$arg"
-        done
-    }
-fi
+        command printf "EXPORT %s   (%s)%s\n" "$arg" "${!arg}" "$exists"
+        command printf "    at %s(%s)\n\n" "$func" "$origin"
+    done >>"$log"
+}
+
+# }}} DEBUG
 
 # *_CONFIG_* directory for user-specific configuration (like /etc)
 # *_DATA_*   directory for program data (like /usr/share)
@@ -49,7 +73,8 @@ fi
 DOTLOCAL="$HOME/.local"
 FASTERPARTITION="/mnt"
 FASTPARTITION="/opt"
-:
+
+@log_export BASH_PROFILE_LOG DOTLOCAL FASTERPARTITION FASTPARTITION
 
 # {{{ XDG
 
@@ -61,8 +86,8 @@ export XDG_STATE_HOME="$DOTLOCAL/var/lib"
 [ -d "$DOTLOCAL" ] && command mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
 [ -d "$DOTLOCAL/var" ] && command mkdir -p "$XDG_CACHE_HOME" "$XDG_STATE_HOME"
 
-# *DEBUG*
-: "XDG_CONFIG_HOME" "XDG_DATA_HOME" "XDG_CACHE_HOME" "XDG_STATE_HOME"
+@log_export BASH_PROFILE_LOG XDG_CONFIG_HOME \
+            XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME
 
 # }}} XDG
 
@@ -71,7 +96,7 @@ export XDG_STATE_HOME="$DOTLOCAL/var/lib"
 # in my system, I use the fastest SSD as the mountpoint
 export USER_GAMES_HOME="$FASTERPARTITION/games"
 
-: "USER_GAMES_HOME"
+@log_export BASH_PROFILE_LOG USER_GAMES_HOME
 
 # }}} GAMES
 
@@ -82,7 +107,7 @@ export BASH_SCRIPT_HOME="$DOTLOCAL/config/bash/script"
 
 [ -d "$DOTLOCAL" ] && command mkdir -p "$USER_SCRIPT_HOME"
 
-: "USER_SCRIPT_HOME" "BASH_SCRIPT_HOME"
+@log_export BASH_PROFILE_LOG USER_SCRIPT_HOME BASH_SCRIPT_HOME
 
 export USER_BIN_HOME="$DOTLOCAL/bin"
 export USER_FAST_BIN_HOME="$FASTPARTITION/$USER/local/bin"
@@ -92,7 +117,8 @@ export USER_GAMES_BIN_HOME="$FASTERPARTITION/games/bin"
 [ -d "$FASTPARTITION/$USER" ] && command mkdir -p "$USER_FAST_BIN_HOME"
 [ -d "$FASTERPARTITION/games" ] && command mkdir -p "$USER_GAMES_BIN_HOME"
 
-: "USER_BIN_HOME" "USER_FAST_BIN_HOME" "USER_GAMES_BIN_HOME"
+@log_export BASH_PROFILE_LOG USER_BIN_HOME \
+            USER_FAST_BIN_HOME USER_GAMES_BIN_HOME
 
 # BASH_SCRIPT_HOME should always come first, so that the source builtin (.) can
 # find the correct script to source, without needing to know the full path.
@@ -120,7 +146,8 @@ export BASH_CONFIG_HOME="$XDG_CONFIG_HOME/bash"
 [ -d "$FASTPARTITION/$USER" ] && command mkdir -p "$USER_FAST_CONFIG_HOME"
 [ -d "$XDG_CONFIG_HOME" ] && command mkdir -p "$BASH_CONFIG_HOME"
 
-: "USER_CONFIG_HOME" "USER_FAST_CONFIG_HOME" "BASH_CONFIG_HOME"
+@log_export BASH_PROFILE_LOG USER_CONFIG_HOME USER_FAST_CONFIG_HOME \
+            BASH_CONFIG_HOME
 
 # }}} aka /etc
 
@@ -133,7 +160,7 @@ export BASH_DATA_HOME="$XDG_DATA_HOME/bash"
 [ -d "$FASTPARTITION/$USER" ] && command mkdir -p "$USER_FAST_DATA_HOME"
 [ -d "$XDG_DATA_HOME" ] && command mkdir -p "$BASH_DATA_HOME"
 
-: "USER_DATA_HOME" "USER_FAST_DATA_HOME" "BASH_DATA_HOME"
+@log_export BASH_PROFILE_LOG USER_DATA_HOME USER_FAST_DATA_HOME BASH_DATA_HOME
 
 # }}} aka /usr/share
 
@@ -146,7 +173,8 @@ export BASH_CACHE_HOME="$XDG_CACHE_HOME/bash"
 [ -d "$FASTPARTITION/$USER" ] && command mkdir -p "$USER_FAST_CACHE_HOME"
 [ -d "$XDG_CACHE_HOME" ] && command mkdir -p "$BASH_CACHE_HOME"
 
-: "USER_CACHE_HOME" "USER_FAST_CACHE_HOME" "BASH_CACHE_HOME"
+@log_export BASH_PROFILE_LOG USER_CACHE_HOME \
+            USER_FAST_CACHE_HOME BASH_CACHE_HOME
 
 # }}} aka /etc
 
@@ -159,7 +187,8 @@ export BASH_STATE_HOME="$XDG_STATE_HOME/bash"
 [ -d "$FASTPARTITION/$USER" ] && command mkdir -p "$USER_FAST_STATE_HOME"
 [ -d "$XDG_STATE_HOME" ] && command mkdir -p "$BASH_STATE_HOME"
 
-: "USER_STATE_HOME" "USER_FAST_STATE_HOME" "BASH_STATE_HOME"
+@log_export BASH_PROFILE_LOG USER_STATE_HOME \
+            USER_FAST_STATE_HOME BASH_STATE_HOME
 
 # }}} /var/lib
 
@@ -218,6 +247,7 @@ unset xdg_user_dir_names xdg_user_dir_varnames
 
 # }}} xdg user directories
 
-unset DOTLOCAL FASTERPARTITION FASTPARTITION
+export BASH_PROFILE_NEW_LOG_FILE="$(declare -fp "@new_log_file")"
+export BASH_PROFILE_LOG_EXPORT="$(declare -fp "@log_export")"
 
 test -f "$HOME/.bashrc" && . "$HOME/.bashrc"
