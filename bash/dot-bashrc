@@ -103,12 +103,12 @@ if [ "$SSH_AUTH_SOCK" != \
         export SSH_AUTH_SOCK="$(command gpgconf --list-dirs agent-ssh-socket)"
         @log_bash_export SSH_AUTH_SOCK
     fi
-    # start gpg-agent
-    command gpg-connect-agent /bye &>/dev/null
 fi
 
 export GPG_TTY=$(tty)
 @log_bash_export GPG_TTY
+# start gpg-agent
+command gpg-connect-agent /bye &>/dev/null
 
 # }}}
 
