@@ -108,7 +108,7 @@ fi
 export GPG_TTY=$(tty)
 @log_bash_export GPG_TTY
 # start gpg-agent
-command gpg-connect-agent /bye &>/dev/null
+command gpg-connect-agent updatestartuptty /bye &>/dev/null
 
 # }}}
 
